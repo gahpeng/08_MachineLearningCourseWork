@@ -1,0 +1,106 @@
+---
+title: "Practical Machine Learning Project"
+author: "gah peng"
+date: "December 26, 2015"
+output: html_document
+---
+
+#Introduction
+
+In this project, we will use the data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants who were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The goal of this project is to predict the manner in which they did the exercise.
+
+#Data
+```{r, echo=FALSE}
+rm(list = ls())
+setwd("C:/gahpeng/coursera/08_machineLearning")
+
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+```
+
+##Data Loading
+
+```{r}
+trainDataRead <- read.csv(file = "pml-training.csv", na.strings=c("", "NA", "NULL"))
+testDataRead <- read.csv(file = "pml-testing.csv", na.strings=c("", "NA", "NULL"))
+
+```
+
+##Removing empty or near empty columns
+
+```{r}
+trainDataReadCleaned <- trainDataRead[, colSums(is.na(trainDataRead))<15000]
+trainDataReadCleaned <- trainDataReadCleaned[, colSums(trainDataReadCleaned=="")<15000]
+```
+
+##Removing not relevant columns
+
+```{r}
+trainDataReadCleaned<- trainDataReadCleaned[, -c(1, 2, 3, 4, 5, 6, 7)]
+```
+
+##Train and Test Data
+
+
+
+```{r}
+toTrainTestValidate <- createDataPartition(y=trainDataReadCleaned$classe, p=0.7, list=FALSE)
+trainData <- trainDataReadCleaned[toTrainTestValidate,]
+crossValidationData <- trainDataReadCleaned[-toTrainTestValidate,]
+```
+
+#Model Analysis
+##(A) Random Forest
+
+```{r, echo=FALSE}
+set.seed(999)
+modelRF <- randomForest(classe ~. , data=trainData, method="class")
+myPrediction <- predict(modelRF, crossValidationData, type = "class")
+confusionMatrix(myPrediction, crossValidationData$classe)
+```
+
+
+##(B) Decision Tree
+
+```{r, echo=FALSE}
+set.seed(999)
+modelDTree <- rpart(classe ~ ., data=trainData, method="class")
+prp(modelDTree,uniform=TRUE)
+myPredictionDTree<- predict(modelDTree, crossValidationData, type = "class")
+confusionMatrix(myPredictionDTree, crossValidationData$classe)
+
+```
+
+
+##Accuracy Rate
+
+Comparing the accuracy rate for the two models, the accuracy rate for Random Forest is 99.54% while the accuracy rate for Decision Tree is 75.48%. 
+Therefore the model selected is Random Forest.
+
+##Out of Sample Error
+Based on the missclassificaiton rate on the testing subset, an unbiased estimate of the random forest's out-of-sample error rate is 0.04%.
+
+
+```{r, echo=FALSE}
+missClass = function(values, prediction) {
+  sum(prediction != values)/length(values)
+}
+errRate = missClass(crossValidationData$classe, myPrediction)
+print(errRate)
+```
+
+
+## Variable of Importance
+
+```{r, echo=FALSE} 
+varImpPlot(modelRF)
+```
+
+#Test Model
+
+```{r, echo=FALSE}
+myTesting <- predict(modelRF, testDataRead)
+print(myTesting)
+```
